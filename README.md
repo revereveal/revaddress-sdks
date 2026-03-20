@@ -10,7 +10,7 @@ Direct USPS integration. OAuth 2.0. No middleman. No per-label fees.
 
 > **Migrating from `usps-api`?** That package (13,700+ downloads/month) uses the retired USPS Web Tools XML API (shut down January 25, 2026). This SDK uses the new v3 REST API with OAuth 2.0. See [Migration from usps-api](#migration-from-usps-api) below.
 
-> **Don't want to manage USPS credentials?** [RevAddress](https://revaddress.com) provides the managed USPS lane: hosted OAuth, BYOK continuity, and a developer-facing surface without direct USPS auth plumbing. [Get a free sandbox key](https://revaddress.com/signup/) — no credit card required.
+> **Don't want to manage USPS credentials?** [RevAddress](https://revaddress.com) is the managed USPS lane for hosted OAuth, BYOK continuity, and a developer-facing surface without direct USPS auth plumbing. [Get a free sandbox key](https://revaddress.com/signup/) — no credit card required.
 
 
 ## How this family fits together
@@ -28,15 +28,15 @@ The three SDK repos are sibling public packages, not duplicates. RevAddress is t
 
 > **Human gate note:** SDK installability and package health are separate from USPS enrollment and entitlement friction for production label/payment flows. The public SDK family can be healthy while USPS operator setup still blocks parts of live production rollout.
 
-## Migrating from EasyPost or USPS Web Tools?
+## Need the managed lane instead of raw USPS auth plumbing?
 
-RevAddress provides a managed USPS v3 API with flat monthly pricing — no per-label fees. If you're migrating from EasyPost (shutting down March 17, 2026) or the legacy USPS Web Tools XML API:
+If you're migrating from EasyPost or the legacy USPS Web Tools XML API and want a managed lane beside the raw SDKs:
 
 - **[Migration Guide](https://revaddress.com/blog/usps-migration-guide/)** — Step-by-step from XML to REST
-- **[EasyPost vs RevAddress](https://revaddress.com/blog/easypost-vs-revaddress/)** — Feature and pricing comparison
 - **[Endpoint Mapping](https://revaddress.com/blog/usps-web-tools-endpoint-mapping/)** — Every legacy endpoint mapped to v3
+- **[RevAddress Docs](https://revaddress.com/docs/)** — Hosted API docs and onboarding surface
 
-Save 81% vs EasyPost at 5,000 labels/mo ($79/mo flat vs $420 in per-label fees). [Get started →](https://revaddress.com/signup/)
+Use the SDK when you want direct USPS integration in your own stack. Use RevAddress when you want the managed OAuth / BYOK / hosted-developer lane.
 
 ## Install
 
@@ -185,9 +185,9 @@ If you'd rather not manage USPS OAuth credentials, rate limits, and enrollment y
 
 - **Drop-in USPS v3 API** — same endpoints, managed OAuth
 - **Managed OAuth + token lifecycle** — stay out of USPS auth churn
-- **Rate-limit smoothing and hosted developer surface** — practical operator path for real workloads
+- **Rate-limit smoothing** — reduce the practical pain of direct USPS limits without promising unproven throughput numbers
 - **BYOK support** — bring your own USPS credentials when you need account continuity
-- **Flat monthly pricing** — no per-label fees ([see pricing](https://revaddress.com/pricing/))
+- **Hosted developer surface** — use a managed lane instead of rebuilding USPS auth plumbing yourself
 
 [Get a free sandbox key](https://revaddress.com/signup/) — address validation, tracking, and rate shopping included. No credit card required.
 
