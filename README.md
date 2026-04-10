@@ -30,7 +30,7 @@ The three SDK repos are sibling public packages, not duplicates. RevAddress is t
 
 ## Need the managed lane instead of raw USPS auth plumbing?
 
-If you're migrating from EasyPost or the legacy USPS Web Tools XML API and want a managed lane beside the raw SDKs:
+If you're migrating from the legacy USPS Web Tools XML API and want a managed lane beside the raw SDKs:
 
 - **[Migration Guide](https://revaddress.com/blog/usps-migration-guide/)** — Step-by-step from XML to REST
 - **[Endpoint Mapping](https://revaddress.com/blog/usps-web-tools-endpoint-mapping/)** — Every legacy endpoint mapped to v3
