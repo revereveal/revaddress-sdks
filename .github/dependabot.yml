@@ -1,0 +1,120 @@
+# Fleet-standard dependabot.yml (revereveal template) — revaddress-sdks monorepo.
+# Four ecosystems: one per package directory + github-actions.
+# Solo-dev calibrated: weekly (not daily), grouped, majors ignored, security independent.
+version: 2
+
+updates:
+  # Python — packages/python (pip)
+  - package-ecosystem: "pip"
+    directory: "/packages/python"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      dev-tooling:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "mypy"
+          - "types-*"
+        update-types:
+          - "minor"
+          - "patch"
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  # Node — packages/node (npm)
+  - package-ecosystem: "npm"
+    directory: "/packages/node"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+    groups:
+      dev-tooling:
+        patterns:
+          - "vite*"
+          - "vitest"
+          - "eslint*"
+          - "prettier*"
+          - "typescript"
+          - "@types/*"
+          - "@vitest/*"
+        update-types:
+          - "minor"
+          - "patch"
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  # PHP — packages/php (composer)
+  - package-ecosystem: "composer"
+    directory: "/packages/php"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "php"
+    groups:
+      dev-tooling:
+        patterns:
+          - "phpunit/*"
+          - "squizlabs/*"
+          - "friendsofphp/*"
+        update-types:
+          - "minor"
+          - "patch"
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

@@ -1,0 +1,39 @@
+name: CI — PHP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/php/**"
+      - ".github/workflows/ci-php.yml"
+  pull_request:
+    paths:
+      - "packages/php/**"
+      - ".github/workflows/ci-php.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: packages/php
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: ["8.1", "8.2", "8.3", "8.4"]
+    name: PHP ${{ matrix.php-version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@44454db4f0199b8b9685a5d763dc37cbf79108e1 # v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: json, openssl
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Run tests
+        run: vendor/bin/phpunit --testdox

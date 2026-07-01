@@ -1,0 +1,1203 @@
+openapi: '3.0.3'
+info:
+  title: RevAddress USPS v3 API
+  description: |
+    Drop-in replacement for USPS Web Tools. JSON REST API with managed OAuth, edge caching, ZIP+4 address precision, and guided recovery when USPS needs more detail.
+
+    **Base URL:** `https://api.revaddress.com`
+
+    **Access model:** Address validation, address extract, city/state lookup, domestic and international rates, service standards, shipping options, and locations work on the free tier. Tracking routes, labels, batch validation, pickup request access, BYOK, and other protected workflows require an `X-API-Key`. Higher-volume access is handled through account setup and licensing where required.
+
+    **SDKs:** [Python](https://pypi.org/project/usps-v3/) | [Node.js](https://www.npmjs.com/package/usps-v3) | [PHP](https://packagist.org/packages/revaddress/usps-v3-php)
+  version: 1.1.0
+  contact:
+    name: RevAddress Support
+    email: james@revasser.nyc
+    url: https://revaddress.com/support
+  license:
+    name: Proprietary
+    url: https://revaddress.com/legal/terms
+
+servers:
+  - url: https://api.revaddress.com
+    description: Production
+  - url: https://usps-api-worker.james-20a.workers.dev
+    description: Legacy (workers.dev)
+  - url: http://localhost:8787
+    description: Local development
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns worker health, token status, and configuration.
+      operationId: getHealth
+      tags: [System]
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded]
+                  service:
+                    type: string
+                  tokens:
+                    type: object
+                  config:
+                    type: object
+
+  /api/address/validate:
+    post:
+      summary: Validate and standardize a USPS address
+      description: 'Free tier: no API key required. IP-rate-limited (30 req/10s).'
+      operationId: validateAddress
+      tags: [Addresses]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        '200':
+          description: Validated address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressValidationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      summary: Validate address via query params
+      description: 'Free tier: no API key required.'
+      operationId: validateAddressGet
+      tags: [Addresses]
+      security: []
+      parameters:
+        - name: streetAddress
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: secondaryAddress
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: ZIPCode
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Validated address
+
+  /api/address/city-state:
+    get:
+      summary: Get city and state for a ZIP code
+      description: 'Free tier: no API key required.'
+      operationId: getCityState
+      tags: [Addresses]
+      security: []
+      parameters:
+        - name: ZIPCode
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: City and state
+
+  /api/address/extract:
+    post:
+      summary: Extract USPS-ready addresses from free-form text
+      description: 'Free tier: no API key required. Useful for intake, CRM cleanup, and support-side normalization before validation.'
+      operationId: extractAddress
+      tags: [Addresses]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  description: Free-form input containing one or more mailing addresses
+                maxResults:
+                  type: integer
+                  minimum: 1
+                  maximum: 25
+      responses:
+        '200':
+          description: Extracted address candidates
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/batch/validate:
+    post:
+      summary: Batch validate up to 50 addresses
+      description: 'Growth tier and above. Validates multiple addresses in a single request with parallel processing.'
+      operationId: batchValidateAddresses
+      tags: [Addresses]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [addresses]
+              properties:
+                addresses:
+                  type: array
+                  maxItems: 50
+                  items:
+                    $ref: '#/components/schemas/AddressInput'
+      responses:
+        '200':
+          description: Batch validation results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  successful:
+                    type: integer
+                  failed:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        index:
+                          type: integer
+                        status:
+                          type: string
+                          enum: [success, error]
+                        address:
+                          type: object
+                        additionalInfo:
+                          type: object
+                        cached:
+                          type: boolean
+                  usage:
+                    type: object
+                    properties:
+                      cached_hits:
+                        type: integer
+                      fresh_lookups:
+                        type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Tier too low (requires Growth+)
+
+  /api/rates:
+    post:
+      summary: Get rate quotes for all mail classes
+      description: 'Free tier: no API key required. Dimensions default to 6x4x1 if not provided.'
+      operationId: getRates
+      tags: [Pricing]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateQuoteInput'
+      responses:
+        '200':
+          description: Rate quotes with optional delivery estimates
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/international-prices:
+    post:
+      summary: Get international shipping rates
+      description: 'Free tier: no API key required. Returns rates for international mail classes.'
+      operationId: getInternationalPrices
+      tags: [Pricing]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [originZIPCode, destinationCountryCode, weight]
+              properties:
+                originZIPCode:
+                  type: string
+                destinationCountryCode:
+                  type: string
+                  description: ISO 3166-1 alpha-2 country code
+                  example: CA
+                weight:
+                  type: number
+                  minimum: 0.001
+                length:
+                  type: number
+                width:
+                  type: number
+                height:
+                  type: number
+                mailClass:
+                  type: string
+                priceType:
+                  type: string
+                mailingDate:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: International rate quotes
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/labels:
+    post:
+      summary: Create a shipping label
+      description: With Workflows enabled, returns a workflow ID (202). Without Workflows, creates label synchronously (201).
+      operationId: createLabel
+      tags: [Labels]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabelCreationInput'
+      responses:
+        '201':
+          description: Label created (direct mode)
+        '202':
+          description: Workflow created (workflow mode)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          description: Payment token unavailable
+    get:
+      summary: List recent labels
+      operationId: listLabels
+      tags: [Labels]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Label list
+
+  /api/labels/{labelId}/download:
+    get:
+      summary: Download label PDF
+      operationId: downloadLabel
+      tags: [Labels]
+      parameters:
+        - name: labelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf: {}
+        '404':
+          description: Label not found
+
+  /api/labels/void/{labelId}:
+    post:
+      summary: Void/refund a label
+      operationId: voidLabel
+      tags: [Labels]
+      parameters:
+        - name: labelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Label voided
+        '404':
+          description: Label not found
+        '400':
+          description: Label cannot be voided (delivered)
+        '409':
+          description: Label already voided
+
+  /api/workflows/{workflowId}/status:
+    get:
+      summary: Get workflow status
+      operationId: getWorkflowStatus
+      tags: [Workflows]
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workflow status
+        '404':
+          description: Workflow not found
+
+  /api/workflows/{workflowId}/approve:
+    post:
+      summary: Approve charge for a waiting workflow
+      operationId: approveWorkflow
+      tags: [Workflows]
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approved:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Event sent
+
+  /api/tracking/{trackingNumber}:
+    get:
+      summary: Get tracking status
+      operationId: getTracking
+      tags: [Tracking]
+      parameters:
+        - name: trackingNumber
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: expand
+          in: query
+          schema:
+            type: string
+            default: DETAIL
+      responses:
+        '200':
+          description: Tracking data
+        '400':
+          description: Missing tracking number
+
+  /api/pickup:
+    post:
+      summary: Pickup surface (limited rollout)
+      operationId: managePickup
+      tags: [Pickup]
+      parameters:
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [check, schedule, cancel]
+      responses:
+        '200':
+          description: Pickup response
+
+  /api/locations:
+    get:
+      summary: Find USPS drop-off locations
+      description: 'Free tier: no API key required.'
+      operationId: getLocations
+      tags: [Locations]
+      security: []
+      parameters:
+        - name: destinationZIPCode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: mailClass
+          in: query
+          schema:
+            type: string
+            default: PARCEL_SELECT
+      responses:
+        '200':
+          description: Location list
+
+  /api/service-standards:
+    get:
+      summary: Get delivery time estimates
+      description: 'Free tier: no API key required.'
+      operationId: getServiceStandards
+      tags: [Service Standards]
+      security: []
+      parameters:
+        - name: originZIPCode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: destinationZIPCode
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delivery estimates
+
+  /api/shipping-options:
+    get:
+      summary: Get available shipping products
+      description: 'Free tier: no API key required. Defaults to USPS_GROUND_ADVANTAGE with 6x4x1 dimensions.'
+      operationId: getShippingOptions
+      tags: [Service Standards]
+      security: []
+      parameters:
+        - name: originZIPCode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: destinationZIPCode
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shipping options
+
+  /api/tokens/status:
+    get:
+      summary: Token status (admin)
+      operationId: getTokenStatus
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      responses:
+        '200':
+          description: Token TTL and validity
+        '401':
+          description: Unauthorized
+
+  /api/tokens/clear:
+    post:
+      summary: Clear cached OAuth and payment tokens (admin)
+      operationId: clearTokens
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      parameters:
+        - name: env
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [prod, tem]
+      responses:
+        '200':
+          description: Cleared token state and returned the post-clear status snapshot
+
+  /api/tokens/refresh:
+    post:
+      summary: Force token refresh (admin)
+      operationId: refreshTokens
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      responses:
+        '200':
+          description: Refresh result
+
+  /api/test-payment-auth:
+    post:
+      summary: Test Payment Authorization Token (admin)
+      operationId: testPaymentAuth
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      responses:
+        '200':
+          description: Payment auth test result
+
+  /api/admin/keys:
+    post:
+      summary: Create API key
+      operationId: createApiKey
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [merchant_id]
+              properties:
+                merchant_id:
+                  type: string
+                label:
+                  type: string
+                tier:
+                  type: string
+                  default: free
+                rate_limit_per_min:
+                  type: integer
+                  default: 60
+      responses:
+        '201':
+          description: API key created (plaintext shown once)
+        '400':
+          description: Missing merchant_id
+    get:
+      summary: List all API keys
+      operationId: listApiKeys
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      responses:
+        '200':
+          description: Key list (hashed, never plaintext)
+
+  /api/admin/keys/{keyHash}:
+    delete:
+      summary: Revoke an API key
+      operationId: revokeApiKey
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      parameters:
+        - name: keyHash
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Key revoked
+        '404':
+          description: Key not found
+
+  /api/admin/usage:
+    get:
+      summary: Usage summary for billing
+      operationId: getUsageSummary
+      tags: [Admin]
+      security:
+        - adminAuth: []
+      parameters:
+        - name: merchant_id
+          in: query
+          schema:
+            type: string
+        - name: month
+          in: query
+          schema:
+            type: string
+            example: '2026-03'
+      responses:
+        '200':
+          description: Usage breakdown by merchant and endpoint
+
+  /api/checkout:
+    post:
+      summary: Create a Stripe checkout session
+      description: Public commerce route used to start a paid plan or upgrade flow.
+      operationId: createCheckout
+      tags: [Billing]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                price_id:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                success_url:
+                  type: string
+                  format: uri
+                cancel_url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Checkout session created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/checkout/key:
+    get:
+      summary: Retrieve checkout-issued API key state
+      description: Public commerce route keyed by Stripe session id. Used after checkout to retrieve the newly issued key or current fulfillment state.
+      operationId: getCheckoutKey
+      tags: [Billing]
+      security: []
+      parameters:
+        - name: session_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Checkout key or fulfillment state
+        '202':
+          description: Checkout found but key fulfillment still pending
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/signup:
+    post:
+      summary: Create a new API key (self-service)
+      description: Generates an API key instantly. Key is shown once — store it securely. Optional Turnstile bot check.
+      operationId: signup
+      tags: [Self-Service]
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  description: Optional label for the key (e.g. "my-app")
+                sandbox:
+                  type: boolean
+                  description: If true, generates a sandbox key for evaluation-only access
+                  default: false
+                turnstileToken:
+                  type: string
+                  description: Cloudflare Turnstile token (optional, for bot protection)
+      responses:
+        '201':
+          description: API key created (shown once, never again)
+        '403':
+          description: Turnstile verification failed
+
+  /api/support/contact:
+    post:
+      summary: Submit a support request
+      description: Public rate-limited support intake route for customer help, not a core shipping workflow endpoint.
+      operationId: submitSupportContact
+      tags: [Support]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, message]
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                message:
+                  type: string
+                topic:
+                  type: string
+      responses:
+        '200':
+          description: Support request accepted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          description: Too many requests from the same IP
+
+  /api/my/usage:
+    get:
+      summary: Get your usage stats
+      description: Returns API call counts grouped by endpoint, scoped to your merchant ID.
+      operationId: getMyUsage
+      tags: [Self-Service]
+      parameters:
+        - name: month
+          in: query
+          description: 'Filter by month (e.g. 2026-03)'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Usage breakdown
+        '401':
+          description: Invalid or missing API key
+
+  /api/my/keys:
+    get:
+      summary: List your API keys
+      description: Returns all keys for your merchant, with masked hashes. Use key_hash_full for revocation.
+      operationId: getMyKeys
+      tags: [Self-Service]
+      responses:
+        '200':
+          description: Key list with masked hashes
+        '401':
+          description: Invalid or missing API key
+
+  /api/my/keys/{keyHash}:
+    delete:
+      summary: Revoke one of your API keys
+      description: Permanently revokes a key. Only keys belonging to your merchant can be revoked.
+      operationId: revokeMyKey
+      tags: [Self-Service]
+      parameters:
+        - name: keyHash
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Full key hash (from key_hash_full in /api/my/keys response)
+      responses:
+        '200':
+          description: Key revoked
+        '404':
+          description: Key not found or not yours
+        '401':
+          description: Invalid or missing API key
+
+  /api/my/billing-portal:
+    post:
+      summary: Get Stripe billing portal URL
+      description: Returns a URL to the Stripe Customer Portal for managing subscriptions, invoices, and payment methods.
+      operationId: getBillingPortal
+      tags: [Self-Service]
+      responses:
+        '200':
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  portal_url:
+                    type: string
+                    format: uri
+        '400':
+          description: No active subscription
+
+  /api/my/webhooks:
+    post:
+      summary: Register a tracking webhook endpoint (limited rollout)
+      description: 'Starter tier and above. Register a URL for tracking webhooks when event delivery is enabled for your account. Max 5 endpoints per merchant.'
+      operationId: createWebhook
+      tags: [Webhooks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: HTTPS endpoint to receive webhook POSTs
+                events:
+                  type: array
+                  items:
+                    type: string
+                    enum: [tracking.delivered, tracking.in_transit, tracking.out_for_delivery, tracking.alert, tracking.returned, tracking.pre_shipment]
+                  description: Event types to subscribe to (defaults to all)
+      responses:
+        '201':
+          description: Webhook registered. Secret shown once only.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  url:
+                    type: string
+                  events:
+                    type: array
+                    items:
+                      type: string
+                  secret:
+                    type: string
+                    description: HMAC signing secret (shown once — save it)
+        '403':
+          description: Tier too low (requires Starter+)
+    get:
+      summary: List your webhook endpoints
+      operationId: listWebhooks
+      tags: [Webhooks]
+      responses:
+        '200':
+          description: Webhook endpoint list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpoints:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        url:
+                          type: string
+                        events:
+                          type: array
+                          items:
+                            type: string
+                        active:
+                          type: boolean
+                        created_at:
+                          type: string
+                          format: date-time
+                  count:
+                    type: integer
+
+  /api/my/webhooks/{endpointId}:
+    delete:
+      summary: Delete a webhook endpoint
+      operationId: deleteWebhook
+      tags: [Webhooks]
+      parameters:
+        - name: endpointId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook deleted
+        '404':
+          description: Endpoint not found
+
+  /api/byok/credentials:
+    post:
+      summary: Store BYOK credentials
+      description: |
+        Store or update your own USPS Developer Portal credentials. Credentials are AES-GCM encrypted
+        with HKDF-derived per-merchant keys. After storage, an OAuth token exchange is attempted to verify.
+        If your USPS app has the Shipping Suite product, you can create labels through RevAddress using
+        your own credentials — bypassing platform access limitations.
+      operationId: storeByokCredentials
+      tags: [BYOK]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ByokCredentialsInput'
+      responses:
+        '201':
+          description: Credentials stored and verified
+        '200':
+          description: Credentials stored but verification failed
+        '400':
+          description: Missing required fields
+        '503':
+          description: BYOK not configured on this instance
+    delete:
+      summary: Remove BYOK credentials
+      description: Remove stored BYOK credentials. Subsequent requests will use platform credentials.
+      operationId: deleteByokCredentials
+      tags: [BYOK]
+      responses:
+        '200':
+          description: Credentials removed
+        '404':
+          description: No BYOK credentials found
+
+  /api/byok/status:
+    get:
+      summary: BYOK credential status
+      description: Check BYOK credential status and Durable Object token health.
+      operationId: getByokStatus
+      tags: [BYOK]
+      responses:
+        '200':
+          description: BYOK status including token health
+
+  /api/byok/verify:
+    post:
+      summary: Re-verify BYOK credentials
+      description: Re-verify stored credentials by attempting OAuth token exchange.
+      operationId: verifyByokCredentials
+      tags: [BYOK]
+      responses:
+        '200':
+          description: Verification result
+        '404':
+          description: No BYOK credentials stored
+
+security:
+  - apiKeyAuth: []
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for multi-tenant access. Create via POST /api/signup (self-service) or POST /api/admin/keys (admin).
+    adminAuth:
+      type: http
+      scheme: bearer
+      description: ADMIN_SECRET token
+
+  schemas:
+    AddressInput:
+      type: object
+      required: [streetAddress]
+      properties:
+        streetAddress:
+          type: string
+        secondaryAddress:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        ZIPCode:
+          type: string
+
+    AddressValidationResult:
+      type: object
+      properties:
+        address:
+          $ref: '#/components/schemas/AddressStandardized'
+        additionalInfo:
+          $ref: '#/components/schemas/AddressAdditionalInfo'
+        corrections:
+          $ref: '#/components/schemas/AddressCorrections'
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddressMatch'
+        cached:
+          type: boolean
+        resolution:
+          $ref: '#/components/schemas/AddressResolution'
+
+    AddressStandardized:
+      type: object
+      properties:
+        streetAddress:
+          type: string
+        streetAddressAbbreviation:
+          type: string
+        secondaryAddress:
+          type: string
+        city:
+          type: string
+        cityAbbreviation:
+          type: string
+        state:
+          type: string
+        ZIPCode:
+          type: string
+        ZIPPlus4:
+          type: string
+        urbanization:
+          type: string
+
+    AddressAdditionalInfo:
+      type: object
+      properties:
+        deliveryPoint:
+          type: string
+        carrierRoute:
+          type: string
+        DPVConfirmation:
+          type: string
+          enum: [Y, D, S, N]
+        DPVCMRA:
+          type: string
+        business:
+          type: string
+          enum: [Y, N]
+        vacant:
+          type: string
+          enum: [Y, N]
+        centralDeliveryPoint:
+          type: string
+
+    AddressCorrections:
+      type: object
+      additionalProperties: true
+      description: USPS correction metadata when the submitted input needed normalization.
+
+    AddressMatch:
+      type: object
+      additionalProperties: true
+      description: Candidate or alternate USPS address match returned by the validation engine.
+
+    AddressResolution:
+      type: object
+      properties:
+        classification:
+          type: string
+          enum: [deliverable_exact, missing_secondary, missing_secondary_or_mismatch, not_deliverable, invalid_input, review_response, upstream_validation_error]
+        nextAction:
+          type: string
+          enum: [done, collect_secondary, correct_input, review_response, retry_or_report]
+        userMessage:
+          type: string
+
+    RateQuoteInput:
+      type: object
+      required: [originZIPCode, destinationZIPCode, weight]
+      properties:
+        originZIPCode:
+          type: string
+        destinationZIPCode:
+          type: string
+        weight:
+          type: number
+          minimum: 0.001
+        length:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        mailClass:
+          type: string
+        processingCategory:
+          type: string
+        rateIndicator:
+          type: string
+        priceType:
+          type: string
+        mailingDate:
+          type: string
+          format: date
+
+    ByokCredentialsInput:
+      type: object
+      required: [client_id, client_secret]
+      properties:
+        client_id:
+          type: string
+          description: USPS Developer Portal Consumer Key
+        client_secret:
+          type: string
+          description: USPS Developer Portal Consumer Secret
+        crid:
+          type: string
+          description: Customer Registration ID (required for label creation)
+        master_mid:
+          type: string
+          description: Master Mailer ID (required for label creation)
+        label_mid:
+          type: string
+          description: Label Mailer ID (required for label creation)
+        epa_account:
+          type: string
+          description: Enterprise Payment Account (required for label creation)
+
+    LabelCreationInput:
+      type: object
+      required: [fromAddress, toAddress, mailClass]
+      properties:
+        fromAddress:
+          $ref: '#/components/schemas/AddressInput'
+        toAddress:
+          $ref: '#/components/schemas/AddressInput'
+        mailClass:
+          type: string
+        weight:
+          type: number
+          default: 1
+        length:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        idempotencyKey:
+          type: string
+        imageType:
+          type: string
+          default: PDF
+        labelType:
+          type: string
+          default: 4X6LABEL
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+tags:
+  - name: System
+    description: Health and status
+  - name: Addresses
+    description: Address validation and standardization
+  - name: Pricing
+    description: Rate quotes and comparisons
+  - name: Labels
+    description: Shipping label lifecycle. BYOK merchants with Shipping Suite access can create labels using their own credentials.
+  - name: BYOK
+    description: Bring Your Own Keys — store your own USPS credentials for isolated token management and label creation
+  - name: Webhooks
+    description: Tracking event notifications via HTTP POST with HMAC-SHA256 signatures
+  - name: Workflows
+    description: Durable label creation workflows
+  - name: Tracking
+    description: Package tracking status routes
+  - name: Pickup
+    description: Carrier pickup surface (request access)
+  - name: Locations
+    description: USPS drop-off location finder
+  - name: Service Standards
+    description: Delivery time estimates and shipping options
+  - name: Diagnostics
+    description: Claims, entitlements, and debugging
+  - name: Self-Service
+    description: Key provisioning, usage, and management (authenticated via X-API-Key)
+  - name: Admin
+    description: Token management (requires ADMIN_SECRET)

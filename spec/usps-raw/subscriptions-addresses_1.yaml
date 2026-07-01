@@ -1,0 +1,984 @@
+openapi: 3.0.1
+info:
+  title: Subscriptions - Addresses 
+  description: |
+    Contact Us: [USPS API Support](https://emailus.usps.com/s/usps-APIs) | [Terms of Service](https://about.usps.com/termsofuse.htm)
+       
+    Create a subscription to address updates by CRID. Manage all address update subscriptions, in one place, by providing your server URL to receive events. Parse the address update event data received on the server URL, or call back to the receiving api for the full detailed set of events.
+    
+    Security for the API traffic is provided through IP whitelisting and HMAC. Both of these options are optional. For IP whitelisting, configure your endpoint to only receive traffic from USPS IP addresses. For HMAC, provide a secret in the subscription request that we use to hash the payload using the SHA-256 algorithm. The hash is available as part of the notification subscribers receive. 
+
+    Subscriptions will be maintained as long as the retention date is in the future. After the retention date has passed, USPS may delete your subscription. A warning email will be sent to admin email 7 days prior to the end of subscription retention date and a confirmation email will be sent once the subscription has been deleted.  After the subscription is deleted you will need to create a new subscription to receive future events. 
+
+    Customers are permitted to use a maximum of 10 unique Listener URLs for all their subscriptions, and this limit is enforced per Home CRID. For example, if a customer has two CRIDs, they may use up to 20 unique Listener URLs. Once the unique URL limit is reached, webhook subscription requests will be rejected, and an alert notification will be sent each time a subscription is rejected due to exceeding the URL limit. 
+  contact:
+    name: USPS API Support
+  version: 3.0.0
+servers:
+  - url: https://apis.usps.com/subscriptions-address/
+    description: Production Environment Endpoint
+  - url: https://apis-tem.usps.com/subscriptions-address/
+    description: Testing Environment Endpoint
+tags:
+  - name: Resources
+    description: Subscription management resources.
+  - name: Listener URL Specification
+    description: Notification listener endpoint contract.
+security:
+  - OAuth:
+      - subscriptions-addresses
+paths:
+  /subscriptions:
+    post:
+      tags:
+        - Resources
+      summary: Create a Subscription.
+      description: Create a Subscription to be alerted for Address updates.
+      operationId: post-subscriptions-adress
+      requestBody:
+        description: The input parameters corresponding to the supported grant types.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressSubscription'
+            examples:
+              Address-Subscription:
+                $ref: '#/components/examples/Subscription'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/AddressSubscription'
+        required: true
+      responses:
+        "201":
+          description: Subscription Confirmation.
+          headers:
+            Location:
+              description: The URL to the newly created resource.
+              style: simple
+              explode: false
+              schema:
+                $ref: '#/components/schemas/URIString'
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressSubscription'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/AddressSubscription'
+        "400":
+          description: Invalid request information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "401":
+          description: Unauthorized.
+          headers:
+            WWW-Authenticate:
+              $ref: '#/components/headers/WWWAuthenticate'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "403":
+          description: Access Denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "429":
+          description: Too Many Requests. Too many requests have been received from client in a short amount of time.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "503":
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        default:
+          description: Other unanticipated errors that may occur.
+      security:
+        - OAuth:
+            - subscriptions-address
+  /subscriptions/{subscriptionId}:
+    get:
+      tags:
+        - Resources
+      summary: Get a unique subscription by using its subscriptionId.
+      description: Get a unique subscription by using its subscriptionId.
+      operationId: get-subscriptions-address-id
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+      responses:
+        "200":
+          description: This will return the unique subscription.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressSubscription'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/AddressSubscription'
+        "400":
+          description: Bad Request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "401":
+          description: Unauthorized.
+          headers:
+            WWW-Authenticate:
+              $ref: '#/components/headers/WWWAuthenticate'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "403":
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "429":
+          description: Too Many Requests. Too many requests have been received from client in a short amount of time.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "503":
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        default:
+          description: Other unanticipated errors that may occur.
+      security:
+        - OAuth:
+            - subscriptions-address
+    delete:
+      tags:
+        - Resources
+      summary: Delete a Subscription by ID.
+      description: Use this endpoint to delete a Subscription by its unique identifier.
+      operationId: delete-subscriptions-addresses-id
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        "204":
+          description: Subscription Deleted (no content)
+        "400":
+          description: Bad Request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "401":
+          description: Unauthorized.
+          headers:
+            WWW-Authenticate:
+              $ref: '#/components/headers/WWWAuthenticate'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "403":
+          description: Access Denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "429":
+          description: Too Many Requests. Too many requests have been received from client in a short amout of time.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "503":
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        default:
+          description: Other unanticipated errors that may occur.
+      security:
+        - OAuth:
+            - subscriptions-address
+  /notifications:
+    post:
+      tags:
+        - Listener URL Specification
+      summary: Notification event which the API caller should implement.
+      description: |
+        Notification event API callers implement to receive change of address data. This is the url in which data will be pushed to. Each subscriptions notification response contains a field named `payload` which is a JavaScript object that has been converted into a JSON formatted string. The text should be converted into a JavaScript object via JSON.parse(). The JavaScript object notation (JSON) schemas are provided in the API specification.  The Change of Address Subscription Event example should be parsed with the Addres Detail schema example should be parsed with the Address Detail schema.
+      operationId: post-notifications-address
+      parameters:
+        - $ref: '#/components/parameters/XHMAC'
+        - $ref: '#/components/parameters/HMACHeaderDeprecated'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressNotificationEvent'
+            examples:
+              'Address Notification Event':
+                $ref: '#/components/examples/AddressEvent'
+        required: true
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+        "400":
+          description: Bad Request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "403":
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "429":
+          description: Too Many Requests. Too many requests have been received from client in a short amout of time.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        "503":
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+            examples: {}
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        default:
+          description: Other unanticipated errors that may occur.
+components:
+  schemas:
+    AddressSubscription:
+      title: Subscription
+      description: Subscription for the Change of address to recieve notifications for.
+      allOf:
+        - $ref: '#/components/schemas/Subscription'
+        - required:
+            - filterProperties
+          type: object
+          properties:
+            filterProperties:
+              description: The filters that should be applied to the subscription. The structure of this property will change dependent on the type of subscription a client is signing up for.
+              type: object
+              properties:
+                subscriptionTTL:
+                  $ref: '#/components/schemas/SubscriptionTTL'
+                CRID:
+                  $ref: '#/components/schemas/CRID'
+                address:
+                  $ref: '#/components/schemas/Address'
+              additionalProperties: true
+          additionalProperties: true
+    ConfirmSubscription:
+      title: Subscription Confirmation
+      description: Confirmation Response if subscription is successful.
+      allOf:
+        - $ref: '#/components/schemas/Subscription'
+        - required:
+            - filterProperties
+          type: object
+          properties:
+            filterProperties:
+              description: The filters that should be applied to the subscription. The structure of this property will change dependent on the type of subscription a client is signing up for.
+              type: object
+              properties:
+                subscriptionEligible:
+                  type: string
+                  description: Indicates if the address provided is eligible for a subscription.
+                  pattern: "^[YN]$"
+                  example: Y
+                subscriptionNotEligibleCode:
+                  type: string
+                  description: |
+                    If the address provided is not eligible for a subscription, this field will provide the reason code for ineligibility.
+                    1 - Address Not Found
+                    2 - Address Doesn’t DPV Confirm
+                    3 - Address Missing Information need (e.g., secondary information is missing or invalid)
+                    4 - Address Isn’t Eligible (e.g., Unique ZIP Code, Military Address, General Delivery Address)
+                    5 - Other Reason
+                  pattern: "^[1-5]$"
+                  example: "1"
+              additionalProperties: true
+          additionalProperties: true          
+    SubscriptionTTL:
+      title: Time to Live
+      type: integer
+      description: Indicates how long to keep the subscription active. 
+      example: 30
+    CRID:
+      title: CRID
+      maxLength: 25
+      type: string
+      description: Customer Registration ID.
+      pattern: "^\\d+$"
+      example: "123456"
+    SubscriptionId:
+      title: Subscription ID
+      type: string
+      description: The unique identifier of the subscription.
+      pattern: "^[A-Za-z0-9\\-]+$"
+      example: "12345678"
+    IfMatchHeaderValue:
+      title: If-Match Header Value
+      type: string
+      description: The ETag value used for optimistic concurrency control.
+      pattern: "^[A-Fa-f0-9]{40}$"
+      example: "33a64df551425fcc55e4d42a148795d9f25f89d4"
+    HMACValue:
+      title: HMAC Value
+      type: string
+      description: Base64-encoded HMAC digest value.
+      pattern: "^[A-Za-z0-9+/=]+$"
+      example: "VGhpcyBpcyBhbiBleGFtcGxlIEhNQUMgdmFsdWU="
+    URIString:
+      title: URI String
+      type: string
+      description: A fully qualified URI.
+      format: uri
+      example: https://myserver.com/listener
+    ContentTypeValue:
+      title: Content Type Value
+      type: string
+      description: The media type of the HTTP response.
+      pattern: "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$"
+      default: application/json
+      example: application/json
+    WWWAuthenticateHeaderValue:
+      title: WWW Authenticate Header Value
+      type: string
+      description: The authentication challenge returned to the client.
+      pattern: "^[\\s\\S]*$"
+      example: "WWW-Authenticate: Bearer realm=\"https://api.usps.com\""
+    RetryAfterHeaderValue:
+      title: Retry After Header Value
+      type: string
+      description: The delay value indicating when a client may retry.
+      pattern: "^[\\s\\S]*$"
+      example: "Retry-After: 30"
+    ETagHeaderValue:
+      title: ETag Header Value
+      type: string
+      description: The ETag version string for a resource.
+      pattern: "^[\\s\\S]*$"
+      example: "ETag: \"33a64df551425fcc55e4d42a148795d9f25f89d4\""
+    ErrorMessage:
+      title: Error
+      type: object
+      properties:
+        apiVersion:
+          type: string
+          description: The version of the API that was used and that raised the error.
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: The error status code that has been returned in response to the request.
+            message:
+              type: string
+              description: A human-readable message describing the error.
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status code response returned to the client.
+                  code:
+                    type: string
+                    description: An internal subordinate code used for error diagnosis.
+                  title:
+                    type: string
+                    description: A human-readable title that identifies the error.
+                  detail:
+                    type: string
+                    description: A human-readable description of the error that occurred.
+                  source:
+                    type: object
+                    properties:
+                      parameter:
+                        type: string
+                        description: The input in the request which caused an error.
+                      example:
+                        type: string
+                        description: An example of a valid value for the input parameter.
+                    additionalProperties: true
+                    description: The element that is suspected of originating the error.  Helps to pinpoint the problem.
+                additionalProperties: true
+          additionalProperties: true
+          description: The high-level error that has occurred as indicated by the status code.
+      additionalProperties: true
+      description: Standard error message response.
+    Subscription:
+      title: Subscription
+      required:
+        - adminNotification
+        - listenerURL
+        - secret
+      type: object
+      properties:
+        SubscriptionId:
+          type: string
+          description: Unique Identifier created for this Subscription.
+          pattern: "^[A-Za-z0-9\\-]+$"
+          readOnly: true
+        listenerURL:
+          type: string
+          description: "Customer URL in which subscription data will be sent. You can parse the data received on the server URL, and you can call back to the  API for the full detailed set of events."
+          maxLength: 200
+          format: uri
+          example: https://myserver.com/listener
+        secret:
+          maxLength: 32
+          minLength: 32
+          type: string
+          pattern: "^[A-Za-z0-9\\-]+$"
+          description: Customer supplied secret USPS will use to create a hash value.  The hash will be provided in the Notification payload. USPS will use the SHA-256 algorithm to create the hash value.
+        status:
+          type: string
+          description: "Current status of the subscription.  USPS will post notifications to the supplied listenerURL.  If the listenerURL cannot be reached or is invalid, USPS will change the status of the subscription to SUSPENDED.  The customer has the option of changing the status to DISABLED.  It is recommended the customer change the status to DISABLED if they know their endpoint will not be active, i.e operational maintenance."
+          enum:
+            - DISABLED
+            - ENABLED
+            - SUSPENDED
+        statusReason:
+          type: string
+          description: When status is suspended the Status Reason will return why it was suspended
+          pattern: "^[A-Za-z0-9\\s,.-]+$"
+          readOnly: true
+          example: Unable to reach listener
+        adminNotification:
+          maxItems: 3
+          minItems: 1
+          type: array
+          description: Customer can supply an email address to receive important updates on the status and events related to the subscription.
+          items:
+            $ref: '#/components/schemas/EmailNotification'
+        creationTimestamp:
+          type: string
+          description: When the subscription was originally created.
+          format: date-time
+          readOnly: true
+          minLength: 1
+          maxLength: 50
+        statusChangeTimestamp:
+          type: string
+          description: Time when the status was last changed
+          format: date-time
+          readOnly: true
+        expirationTimestamp:
+          type: string
+          description: When the subscription expires.
+          format: date-time
+          readOnly: true
+      additionalProperties: true
+      description: Subscription for the Change of Address data the consumer is receiving.
+    EmailNotification:
+      type: object
+      description: Email notification recipient details.
+      properties:
+        email:
+          maxLength: 50
+          type: string
+          description: 'E-mail address of recipient. Valid e-mail addresses must be used used for notifications via email. '
+          format: email
+    AddressNotificationEvent:
+      title: Address Subscription Event 
+      type: object
+      required:
+        - subscriptionId
+        - subscriptionType
+        - timestamp
+        - payload
+      properties:
+        subscriptionId:
+          type: string
+          description: Unique identifier created for this Subscription.
+          example: "12345678"
+          pattern: "^[A-Za-z0-9\\-]+$"
+        subscriptionType:
+          type: string
+          description: The name of the topic related to this event.
+          example: "SubscriptionName"
+          pattern: "^[A-Za-z0-9\\s]+$"
+        timestamp:
+          type: string
+          description: "Timestamp message was generated, in ISO-8601 format."
+          format: date-time     
+          example: "2024-12-27T19:05:42.747Z"
+        payload:
+          type: string
+          description: Change of Address subscription details converted into a JSON formatted string.
+          pattern: "^[\\s\\S]*$"
+          example: |
+            {\"ZIPCode\":\"90210\",\"ZIPPlus4\":\"1234\",\"carrierRoute\":\"C020\",\"DPVBusiness\":\"Y\",\"DPVCMRA\":\"N\",\"DPVDrop\":\"N\",\"DPVDropCount\":\"001\",\"DPVEducational\":\"N\",\"DPVLACS\":\"N\",\"DPVNoDoorDelivery\":\"N\",\"DPVNostat\":\"N\",\"DPVNostatReasonCode\":\"N\",\"DPVSeasonal\":\"N\",\"DPVThrowback\":\"N\",\"DPVNoSecureLocation\":\"N\",\"DPVVacant\":\"N\",\"DPVNonDeliveryDays\":\"Saturday,Sunday\",\"DPVUsageCode\":\"R\"}
+        links:
+          title: Hypermedia Links
+          type: array
+          description: Hypermedia links to related resources.
+          minItems: 0
+          maxItems: 20
+          items:
+            required:
+              - href
+              - rel
+            type: object
+            properties:
+              rel:
+                type: array
+                description: The short name(s) of the relationship corresponding to the link.
+                minItems: 0
+                maxItems: 20
+                items:
+                  type: string
+              title:
+                type: string
+                description: A human-readable description of the link relationship.
+                pattern: "^[A-Za-z\\-]+$"
+              href:
+                type: string
+                description: The URL to a related resource.
+                format: uri
+              method:
+                type: string
+                description: The HTTP method to use to access this link.
+                enum:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+              submissionMediaType:
+                type: string
+                description: The media type of the resource request.
+                minLength: 0
+                maxLength: 50
+                pattern: "^[A-Za-z0-9\\-]+$"
+              targetMediaType:
+                type: string
+                description: The media type of the resource response.
+                minLength: 0
+                maxLength: 50
+                pattern: "^[A-Za-z0-9\\-]+$"
+            additionalProperties: false
+      additionalProperties: false
+      description: Address Notification Event    
+    AddressSubscriptionNotification:
+      title: Address Subscription Event Information
+      type: object
+      additionalProperties: false
+      description: Address Subscription Event Information
+      properties:
+        ZIPCode:
+          maxLength: 5
+          type: string
+          description: The ZIP code of the addressee.
+          pattern: "^[0-9]{5}$"
+        ZIPPlus4:
+          maxLength: 4
+          type: string
+          description: The 4-digit extension of the ZIP code.
+          pattern: "^[0-9]{4}$"
+        carrierRoute:
+          maxLength: 4
+          type: string
+          description: Carrier Route ID
+          example: C020
+        DPVBusiness:
+          maxLength: 1
+          type: string
+          description: Address is a business (Y/N)
+          example: "Y"
+        DPVCMRA:
+          maxLength: 1
+          type: string
+          description: Address is a Commercial Mail Receiving Agency (CMRA) (Y/N)
+          example: "N"
+        DPVDrop:
+          maxLength: 1
+          type: string
+          description: Address is a drop - mail is dropped by USPS for further distribution (Y/N)
+          example: "N"
+        DPVDropCount:
+          maxLength: 3
+          type: string
+          description: Drop Count - number of customers serviced where mail is dropped by USPS (001-999)
+          example: "001"
+        DPVEducational:
+          maxLength: 1
+          type: string
+          description: Address is an Educational location (Y/N)
+          example: "N"
+        DPVLACS:
+          maxLength: 1
+          type: string
+          description: Address is an old side LACS address (Y/N)
+          example: "N"
+        DPVNoDoorDelivery:
+          maxLength: 1
+          type: string
+          description: No door delivery flag - for situations where door is not accessible (Y/N)
+          example: "N"
+        DPVNostat:
+          maxLength: 1
+          type: string
+          description: Nostat Flag - Not counted for statistical purposes (Y/N)
+          example: "N"
+        DPVNostatReasonCode:
+          maxLength: 2
+          type: string
+          description: Nostat reason code - 01-06 reasons that a delivery point is not counted for statistical purposes         
+          example: "06"
+        DPVSeasonal:
+          maxLength: 1
+          type: string
+          description: Address is seasonal - aka snowbird (Y/N)
+          enum:
+            - Y
+            - N          
+          example: "N"
+        DPVThrowback:
+          maxLength: 1
+          type: string
+          description: Throwback Flag - mail is delivered to a PO Box instead of this address (Y/N)
+          enum:
+            - Y
+            - N          
+          example: "N"
+        DPVNoSecureLocation:
+          maxLength: 1
+          type: string
+          description: No secure Location flag - address has been flagged as such
+          enum:
+            - Y
+            - N
+          example: "N"
+        DPVVacant:
+          maxLength: 1
+          type: string
+          description: Address is vacant (Y/N)
+          enum:
+            - Y
+            - N
+          example: "N"
+        DPVNonDeliveryDays:
+          maxLength: 255
+          type: string
+          description: Non-delivery days values - comma-delimited days that mail is not delivered.
+          example: "Saturday,Sunday"
+        DPVUsageCode:
+          maxLength: 1
+          type: string
+          description: |
+            Usage code identifies residential/business/mixed used.
+            A - Residential
+            B - Business
+            C - Mixed, mostly Residential
+            D - Mixed, mostly Business
+            G - General Delivery
+            [Space] - Unknown
+          enum:
+            - A
+            - B
+            - C
+            - D
+            - G
+            - " "
+    Address:
+      title: Address
+      type: object
+      properties:
+        streetAddress:
+          maxLength: 50
+          minLength: 1
+          type: string
+          pattern: "^[A-Za-z0-9\\s,.]+$"
+          example: "123 Main St."
+          description: The number of a building along with the name of the road or street on which it is located.
+        streetAddressAbbreviation:
+          maxLength: 50
+          minLength: 0
+          type: string
+          pattern: "^[A-Za-z0-9\\s,.]+$"
+          example: "St."
+          description: This is the abbreviation of the primary street address line for the address.
+          readOnly: true
+        secondaryAddress:
+          maxLength: 50
+          type: string
+          pattern: "^[A-Za-z0-9\\s,.]+$"
+          example: "Apt 101"
+          description: "The secondary unit designator, such as apartment(APT) or suite(STE) number, defining the exact location of the address within a building.  For more information please see [Postal Explorer](https://pe.usps.com/text/pub28/28c2_003.htm)."
+        city:
+          maxLength: 28
+          minLength: 1
+          type: string
+          pattern: "^[A-Za-z\\s]+$"
+          description: This is the city name of the address.
+        state:
+          $ref: '#/components/schemas/State'
+        ZIPCode:
+          pattern: "\\d{5}"
+          type: string
+          description: This is the 5-digit ZIP code.
+        urbanization:
+          maxLength: 96
+          type: string
+          pattern: "^[A-Za-z\\s]+$"
+          description: "An area, sector, or residential development within a geographic area (typically used for addresses in Puerto Rico)."
+      additionalProperties: true
+      description: Address fields standard to all locations.
+    State:
+      title: State
+      maxLength: 2
+      minLength: 2
+      pattern: "^(AA|AE|AL|AK|AP|AS|AZ|AR|CA|CO|CT|DE|DC|FM|FL|GA|GU|HI|ID|IL|IN|IA|KS|KY|LA|ME|MH|MD|MA|MI|MN|MS|MO|MP|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PW|PA|PR|RI|SC|SD|TN|TX|UT|VT|VI|VA|WA|WV|WI|WY)$"
+      type: string
+      description: The two-character state code.
+  parameters:
+    subscriptionId:
+      name: subscriptionId
+      in: path
+      description: The unique identifier of the subscription.
+      required: true
+      style: simple
+      explode: false
+      example: "12345678"
+      schema:
+        $ref: '#/components/schemas/SubscriptionId'
+    IfMatch:
+      name: If-Match
+      in: header
+      description: The value of the entity tag indicating the version of the resource to get or update. All DELETE and PUT operations require an ETag to be supplied as the If-Match parameter.  The ETag is returned in the GET operation and is good for one hour or until it is used in a DELETE or PUT operation.
+      required: true
+      example: 33a64df551425fcc55e4d42a148795d9f25f89d4
+      schema:
+        $ref: '#/components/schemas/IfMatchHeaderValue'
+    XHMAC:
+      name: X-HMAC
+      in: header
+      description: If a secret was provided with the subscription, this field contains an HMAC hash encoded in Base64.
+      required: false
+      style: simple
+      explode: false
+      example: VGhpcyBpcyBhbiBleGFtcGxlIEhNQUMgdmFsdWU=
+      schema:
+        $ref: '#/components/schemas/HMACValue'
+    HMACHeaderDeprecated:
+      name: hmac-header
+      in: header
+      description: Deprecated alias for X-HMAC.
+      required: false
+      deprecated: true
+      style: simple
+      explode: false
+      example: VGhpcyBpcyBhbiBleGFtcGxlIEhNQUMgdmFsdWU=
+      schema:
+        $ref: '#/components/schemas/HMACValue'         
+  examples:
+    AddressEvent:
+      summary: Address Notification Event
+      value:
+        subscriptionId: "123456789"
+        subscriptionType: "Address Subscription"
+        timestamp: '2024-12-27T19:05:42.747Z'
+        payload: |
+          {\"ZIPCode\":\"90210\",\"ZIPPlus4\":\"1234\",\"carrierRoute\":\"C020\",\"DPVBusiness\":\"Y\",\"DPVCMRA\":\"N\",\"DPVDrop\":\"N\",\"DPVDropCount\":\"001\",\"DPVEducational\":\"N\",\"DPVLACS\":\"N\",\"DPVNoDoorDelivery\":\"N\",\"DPVNostat\":\"N\",\"DPVNostatReasonCode\":\"N\",\"DPVSeasonal\":\"N\",\"DPVThrowback\":\"N\",\"DPVNoSecureLocation\":\"N\",\"DPVVacant\":\"N\",\"DPVNonDeliveryDays\":\"Saturday,Sunday\",\"DPVUsageCode\":\"A\"}
+    SubscriptionUpdated:
+      summary: Subscription update response.
+      value:
+        subscriptionId: "12345678"
+        listenerURL: https://myserver.com/listener
+        secret: MySecretKeyPhraseIs32BytesLength
+        status: ENABLED
+        statusReason: Unable to reach listener
+        adminNotification:
+          - email: user@example.com
+        creationTimestamp: "2024-01-10T15:04:05.000Z"
+        statusChangeTimestamp: "2024-01-11T09:22:31.000Z"
+        expirationTimestamp: "2024-02-10T15:04:05.000Z"
+        filterProperties:
+          subscriptionTTL: 20
+          CRID: "123456"
+          Address: 
+            streetAddress: "123 MAIN ST"
+            secondaryAddress: "Apt 101"
+            city: "MEMPHIS"
+            state: "TN"
+            ZIPCode: "99345"
+            urbanization: "Puerto Rico" 
+    Subscription:
+      summary: Subscription event creation request.
+      value:
+        listenerURL: https://myserver.com/listener
+        secret: MySecretKeyPhraseIs32BytesLength
+        adminNotification:
+          - email: user@example.com
+        filterProperties:
+          subscriptionTTL: 20
+          CRID: "123456"
+          Address: 
+            streetAddress: "123 MAIN ST"
+            secondaryAddress: "Apt 101"
+            city: "MEMPHIS"
+            state: "TN"
+            ZIPCode: "99345"
+            urbanization: "Puerto Rico"             
+  headers:
+    ContentType:
+      description: The media type of the response.
+      required: false
+      style: simple
+      explode: false
+      schema:
+        $ref: '#/components/schemas/ContentTypeValue'
+    WWWAuthenticate:
+      description: Hint to the client application which security scheme to authorize a resource request.
+      required: false
+      schema:
+        $ref: '#/components/schemas/WWWAuthenticateHeaderValue'
+    RetryAfter:
+      description: Indicate to the client application a time after which they can retry a resource request.
+      required: false
+      schema:
+        $ref: '#/components/schemas/RetryAfterHeaderValue'
+    ETag:
+      description: Entity Tag response header indicating version of resource. All DELETE and PUT operations require an ETag.  The ETag is returned in the GET operation and is good for one hour or until it is used in a DELETE or PUT operation.
+      schema:
+        $ref: '#/components/schemas/ETagHeaderValue'
+  securitySchemes:
+    OAuth:
+      type: oauth2
+      description: The specified APIs accept an access token formatted as a JSON Web Token. The relative path to the OAuth2 version 3 API which supplies this access token is provided below for reference.
+      flows:
+        clientCredentials:
+          tokenUrl: /oauth2/v3/token
+          scopes:
+            subscriptions-address: "Read, and write access to resources."
+        authorizationCode:
+          authorizationUrl: /oauth2/v3/authorize
+          tokenUrl: /oauth2/v3/token
+          scopes:
+            subscriptions-address: "Read, and write access to resources."
