@@ -1,0 +1,8 @@
+# OS / editor
+.DS_Store
+*.swp
+*~
+
+# Per-package build artifacts + deps are ignored by each package's own
+# .gitignore (brought in via the subtree merge). This root file only covers
+# cross-cutting noise.
