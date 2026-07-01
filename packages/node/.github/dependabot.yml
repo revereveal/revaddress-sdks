@@ -1,0 +1,75 @@
+# Fleet-standard dependabot.yml (revereveal template) adapted for the
+# usps-v3-node manifest layout (single root npm package).
+#
+# Goals (solo-dev calibrated):
+#   - Weekly cadence — not daily. Daily burns context.
+#   - Grouped updates — one PR per dep family, not one per package.
+#   - Manual review required for prod dependencies and any major bump.
+#   - Security updates run independently with higher priority.
+
+version: 2
+
+updates:
+  # npm — root package
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+    groups:
+      cloudflare-platform:
+        patterns:
+          - "wrangler"
+          - "@cloudflare/*"
+          - "miniflare"
+          - "workers-*"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-tooling:
+        patterns:
+          - "vite*"
+          - "vitest"
+          - "eslint*"
+          - "prettier*"
+          - "typescript"
+          - "@types/*"
+          - "jest"
+          - "@vitest/*"
+        update-types:
+          - "minor"
+          - "patch"
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
