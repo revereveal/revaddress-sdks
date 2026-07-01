@@ -15,24 +15,34 @@
 
 | Package | Registry | Publish path |
 |---------|----------|--------------|
-| `packages/python` | PyPI `usps-v3` | tag `py-v*` → GitHub Action → PyPI (trusted publisher on **this** repo) |
-| `packages/node` | npm `usps-v3` | tag `node-v*` → GitHub Action → npm (trusted publisher on **this** repo) |
-| `packages/php` | Packagist `revaddress/usps-v3-php` | **split mirror** (see below) |
+| `packages/python` | PyPI `usps-v3` | tag `py-v*` → GitHub Action → PyPI (repo secret `PYPI_API_TOKEN`) |
+| `packages/node` | npm `usps-v3` | tag `node-v*` → GitHub Action → npm (repo secret `NPM_TOKEN`) |
+| `packages/php` | Packagist `revaddress/usps-v3-php` | public root-`composer.json` repo `revereveal/usps-v3-php` (see below) |
 
-### PHP / Packagist — the split-repo requirement (do not skip)
+### PHP / Packagist — the root-`composer.json` mirror (do not skip)
 
 Public **Packagist.org does not serve a package whose `composer.json` sits in a subdirectory** —
 subdirectory packages are a *Private Packagist* feature only. So `packages/php` cannot be the
 Packagist source directly.
 
-**Mechanism:** `git subtree split --prefix=packages/php` (or `splitsh-lite`) pushes `packages/php/`
-to a dedicated **read-only mirror repo** whose `composer.json` is at its ROOT, and Packagist points
-at the mirror. This monorepo stays canonical; the mirror is regenerated on each release. (Standard
-monorepo-component pattern — e.g. Symfony's component split repos.)
+**Current mechanism (2026-07-01):** the existing public repo `revereveal/usps-v3-php` — which has
+`composer.json` at its ROOT and is what Packagist `revaddress/usps-v3-php` already points at — serves
+as the mirror. Its content is identical to `packages/php` (this monorepo is its origin via subtree
+merge). To keep them in sync on future releases, `git subtree split --prefix=packages/php` (or
+`splitsh-lite`) and force-push the result to `revereveal/usps-v3-php`. This monorepo stays canonical;
+`usps-v3-php` is the derived Packagist mirror. (Standard monorepo-component pattern — e.g. Symfony.)
 
-### Trusted-publisher note (PyPI + npm)
+### Moving PyPI/npm publishing here — token-based, no portal re-registration
 
-PyPI and npm trusted publishing is keyed to `org/repo/workflow/environment`. Moving the publish
-source to this repo requires updating the trusted-publisher config on PyPI (`usps-v3`) and npm
-(`usps-v3`) to `revereveal/revaddress-sdks` + the release workflow **before** the first tagged
-release from here — otherwise the publish is rejected.
+The original repos publish via **repo-secret tokens** (`PYPI_API_TOKEN`, `NPM_TOKEN`), NOT OIDC
+trusted-publishing. To move publishing to this monorepo:
+
+1. Add `PYPI_API_TOKEN` and `NPM_TOKEN` as Actions secrets on `revereveal/revaddress-sdks` (same
+   token values, or regenerate on pypi.org / npmjs.com).
+2. Add tag-triggered release workflows (`py-v*` → build `packages/python` → `twine upload`;
+   `node-v*` → build `packages/node` → `npm publish`).
+3. Then the Python/Node originals (`usps-v3`, `usps-v3-node`) can be tombstoned + archived — they are
+   no longer the publish source.
+
+Until steps 1–2 are done, `usps-v3` and `usps-v3-node` stay live as the publish sources (nothing
+broke); only their GitHub links moved to this monorepo.
