@@ -6,7 +6,7 @@
 
 USPS v3 REST API client — OAuth 2.0, address validation, tracking, labels, rates. Drop-in replacement for `usps-webtools` and `usps-webtools-promise` (retired January 2026).
 
-**Zero dependencies.** Uses built-in `fetch` (Node 18+). Full TypeScript types included.
+**Zero dependencies.** Uses built-in `fetch` (Node 20+). Full TypeScript types included.
 
 > **Migrating from `usps-webtools` or `usps-webtools-promise`?** Those packages use the retired USPS Web Tools XML API (shut down January 25, 2026). This SDK uses the new v3 REST API with OAuth 2.0. See [Migration from usps-webtools](#migration-from-usps-webtools) below.
 

@@ -59,14 +59,11 @@
     "url": "https://github.com/revereveal/usps-v3-node/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.2.7"
-  },
-  "overrides": {
-    "vite": "^6.4.3"
+    "vitest": "^4.1.12"
   }
 }
